@@ -3,6 +3,7 @@ package com.ridwan.chat.verticle
 import com.ridwan.chat.HTTP_SERVER_PORT
 import io.vertx.core.Vertx
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class ChatVerticleTest {
@@ -20,10 +21,18 @@ internal class ChatVerticleTest {
   }
   
   @Test
-  fun testConditionAfterStartingUp() {
+  fun testHttpServerConnection() {
     val client = verticle.vertx.createHttpClient()
     client.getNow("http://localhost:$HTTP_SERVER_PORT") { response ->
-      Assertions.assertEquals(200, response.statusCode())
+      assertEquals(200, response.statusCode())
+    }
+  }
+  
+  @Test
+  fun testSqlConnection() {
+    val database = verticle.database
+    database.call("SELECT 1") { result ->
+      assertTrue(result.succeeded())
     }
   }
 }
