@@ -63,7 +63,7 @@ class ChatVerticle: AbstractVerticle() {
     httpServer = vertx.createHttpServer()
     httpServer.requestHandler(RestController())
     httpServer.listen(HTTP_PORT)
-    startFuture?.complete()
+    setupDatabase(startFuture)
   }
   
   /**
@@ -74,5 +74,23 @@ class ChatVerticle: AbstractVerticle() {
   override fun stop(stopFuture: Future<Void>?) {
     httpServer.close()
     stopFuture?.complete()
+  }
+  
+  private fun setupDatabase(future: Future<Void>?) {
+    val sqlQuery = """
+      |create table if not exists message (
+      |id int identity primary key,
+      |content varchar(255) not null,
+      |created_at timestamp not null
+      |)""".trimMargin()
+    
+    database.call(sqlQuery) { queryResult ->
+      if (queryResult.failed()) {
+        future?.fail(queryResult.cause())
+        return@call
+      }
+      
+      future?.complete()
+    }
   }
 }
