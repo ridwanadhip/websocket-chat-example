@@ -4,56 +4,95 @@
 
 package com.ridwan.chat.verticle
 
-import com.ridwan.chat.HTTP_SERVER_PORT
+import com.ridwan.chat.HTTP_PORT
+import com.ridwan.chat.HTTP_DOMAIN
 import io.vertx.core.Vertx
+import io.vertx.junit5.VertxExtension
+import io.vertx.junit5.VertxTestContext
+import io.vertx.kotlin.core.json.json
+import io.vertx.kotlin.core.json.obj
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.extension.ExtendWith
+import java.sql.Timestamp
+import java.time.LocalDateTime
 
 /**
  * Unit tests of ChatVerticle class. The main objective of the tests is to make
  * sure that every components of verticle (http server, database, etc.) behaves
  * normally.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(VertxExtension::class)
 internal class ChatVerticleTest {
   private lateinit var verticle: ChatVerticle
   
   /**
    * Prepare unit test class.
    */
-  @BeforeAll
-  fun setUp() {
+  @BeforeEach
+  fun setUp(vertx: Vertx, test: VertxTestContext) {
     verticle = ChatVerticle()
-    Vertx.vertx().deployVerticle(verticle)
-  }
-  
-  /**
-   * Clean unit test class.
-   */
-  @AfterAll
-  fun tearDown() {
-    verticle.vertx.close()
+    vertx.deployVerticle(verticle, test.completing())
   }
   
   /**
    * Check if http server is working or not.
    */
   @Test
-  fun testHttpServerConnection() {
-    val client = verticle.vertx.createHttpClient()
-    client.getNow("http://localhost:$HTTP_SERVER_PORT") { response ->
+  fun testHttpServerConnection(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    client.get(HTTP_PORT, HTTP_DOMAIN, "/") { response -> test.verify {
       assertEquals(200, response.statusCode())
-    }
+      test.completeNow()
+    } }.end()
   }
   
   /**
    * Check if database is working or not.
    */
   @Test
-  fun testSqlConnection() {
+  fun testSqlConnection(test: VertxTestContext) {
     val database = verticle.database
-    database.call("SELECT 1") { result ->
-      assertTrue(result.succeeded())
+    database.getConnection { connection -> test.verify {
+      assertTrue(connection.succeeded())
+      test.completeNow()
+    } }
+  }
+
+  /**
+   * Check if send message API is working or not.
+   */
+  @Test
+  fun testSendMessage(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val now = Timestamp.valueOf(LocalDateTime.now()).toString()
+    val message = "test"
+
+    val requestBody = json { obj(
+      "message" to message,
+      "timestamp" to now
+    )}
+  
+    val path = "/send-message"
+    val postRequest = client.post(HTTP_PORT, HTTP_DOMAIN, path) { response ->
+      test.verify {
+        assertEquals(200, response.statusCode())
+        val database = verticle.database
+        val sqlQuery = "SELECT content, created_at FROM message LIMIT 1"
+    
+        database.query(sqlQuery) { queryResult -> test.verify {
+          assertTrue(queryResult.succeeded())
+          val data = queryResult.result().rows
+          assertEquals(1, data.size)
+          assertEquals(message, data.first().getString("content"))
+          assertEquals(now, data.first().getString("timestamp"))
+          test.completeNow()
+        } }
+      }
     }
+
+    postRequest
+      .putHeader("Content-Type", "application/json")
+      .end(requestBody.encode())
   }
 }

@@ -4,7 +4,8 @@
 
 package com.ridwan.chat.verticle
 
-import com.ridwan.chat.HTTP_SERVER_PORT
+import com.ridwan.chat.HTTP_PORT
+import com.ridwan.chat.controller.RestController
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
 import io.vertx.core.http.HttpServer
@@ -60,8 +61,8 @@ class ChatVerticle: AbstractVerticle() {
     
     database = JDBCClient.createShared(vertx, dbConfig)
     httpServer = vertx.createHttpServer()
-    httpServer.requestHandler { request -> request.response().end() }
-    httpServer.listen(HTTP_SERVER_PORT)
+    httpServer.requestHandler(RestController())
+    httpServer.listen(HTTP_PORT)
     startFuture?.complete()
   }
   
