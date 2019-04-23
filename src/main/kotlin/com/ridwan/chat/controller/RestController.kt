@@ -11,10 +11,16 @@ import io.vertx.core.http.HttpServerRequest
 class RestController : Handler<HttpServerRequest> {
   override fun handle(request: HttpServerRequest) {
     when (request.path()) {
+      "/" -> handleIndex(request)
       "/send-message" -> handleSendMessage(request)
       "/get-messages" -> handleGetMessages(request)
       else -> request.response().setStatusCode(404).end()
     }
+  }
+  
+  private fun handleIndex(request: HttpServerRequest) {
+    val response = request.response()
+    response.setStatusCode(200).end()
   }
   
   private fun handleSendMessage(request: HttpServerRequest) {
