@@ -54,7 +54,7 @@ internal class ChatVerticleTest {
   fun testSqlConnection(test: VertxTestContext) {
     val database = verticle.database
     database.getConnection { connection -> test.verify {
-      assertTrue(connection.succeeded())
+      assertNull(connection.cause())
       test.completeNow()
     } }
   }
@@ -81,7 +81,7 @@ internal class ChatVerticleTest {
         val sqlQuery = "SELECT content, created_at FROM message LIMIT 1"
     
         database.query(sqlQuery) { queryResult -> test.verify {
-          assertTrue(queryResult.succeeded())
+          assertNull(queryResult.cause())
           val data = queryResult.result().rows
           assertEquals(1, data.size)
           assertEquals(message, data.first().getString("content"))
