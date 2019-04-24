@@ -73,6 +73,7 @@ class ChatVerticle: AbstractVerticle() {
    */
   override fun stop(stopFuture: Future<Void>?) {
     httpServer.close()
+    database.close()
     stopFuture?.complete()
   }
   

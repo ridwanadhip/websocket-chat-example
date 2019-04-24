@@ -10,6 +10,7 @@ import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServerRequest
 import io.vertx.core.json.DecodeException
 import io.vertx.core.json.Json
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
@@ -91,8 +92,18 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
       return
     }
   
-    response
-      .putHeader("Content-Type", "application/json")
-      .end()
+    val sqlQuery = "SELECT \"id\", \"content\", \"received_at\" FROM message"
+    val database = verticle.database
+    database.query(sqlQuery) { sqlResult ->
+      if (sqlResult.failed()) {
+        response.setStatusCode(500).end()
+        return@query
+      }
+  
+      val result = JsonArray(sqlResult.result().rows)
+      response
+        .putHeader("Content-Type", "application/json")
+        .end(result.encode())
+    }
   }
 }

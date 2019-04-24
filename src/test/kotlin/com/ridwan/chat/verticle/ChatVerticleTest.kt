@@ -6,23 +6,18 @@ package com.ridwan.chat.verticle
 
 import com.ridwan.chat.HTTP_PORT
 import com.ridwan.chat.HTTP_DOMAIN
-import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
-import io.vertx.kotlin.core.json.json
 import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
-import io.vertx.kotlin.core.json.obj
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 import java.time.Instant
-import java.time.LocalDateTime
 
 /**
  * Unit tests of ChatVerticle class. The main objective of the tests is to make
@@ -34,12 +29,22 @@ internal class ChatVerticleTest {
   private lateinit var verticle: ChatVerticle
   
   /**
-   * Prepare unit test class.
+   * Deploy verticle before running test.
    */
   @BeforeEach
   fun setUp(vertx: Vertx, test: VertxTestContext) {
     verticle = ChatVerticle()
     vertx.deployVerticle(verticle, test.completing())
+  }
+  
+  /**
+   * Clear database and undeploy verticle before executing other test.
+   */
+  @AfterEach
+  fun tearDown(vertx: Vertx, test: VertxTestContext) {
+    verticle.database.call("DROP SCHEMA PUBLIC CASCADE") {
+      vertx.undeploy(verticle.deploymentID(), test.completing())
+    }
   }
   
   /**
@@ -72,7 +77,7 @@ internal class ChatVerticleTest {
   @Test
   fun testSendMessageSuccess(vertx: Vertx, test: VertxTestContext) {
     val client = vertx.createHttpClient()
-    val message = "test"
+    val message = "testSendMessageSuccess"
 
     val requestBody = jsonObjectOf(
       "content" to message
@@ -188,12 +193,12 @@ internal class ChatVerticleTest {
       VALUES (?, ?)
       """.trimMargin()
     
-    val content = "test"
+    val content = "testGetMessagesSuccess"
     val now = Instant.now()
     val params = jsonArrayOf(content, now.toString())
     val database = verticle.database
     
-    database.updateWithParams(sqlQuery, params) { sqlResult ->
+    database.updateWithParams(sqlQuery, params) { sqlResult -> test.verify {
       assertNull(sqlResult.cause())
       
       client.get(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
@@ -211,7 +216,7 @@ internal class ChatVerticleTest {
           test.completeNow()
         } }
       } }.end()
-    }
+    } }
   }
   
   /**
@@ -251,7 +256,6 @@ internal class ChatVerticleTest {
         assertEquals(0, messages.size())
         test.completeNow()
       } }
-    } }
-      .end()
+    } }.end()
   }
 }
