@@ -300,10 +300,10 @@ internal class ChatVerticleTest {
       client.jsonPost(sendMessagePath, jsonBody2) { test.verify {
         client.jsonPost(sendMessagePath, jsonBody3) { test.verify {
           // wait until user received all messages
-          vertx.setTimer(3000) {
+          vertx.setTimer(3000) { test.verify {
             assertIterableEquals(expectedResult, displayedMessages)
             test.completeNow()
-          }
+          }}
         }}
       }}
     }}
