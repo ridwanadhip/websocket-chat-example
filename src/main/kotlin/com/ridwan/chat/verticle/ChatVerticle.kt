@@ -54,14 +54,14 @@ class ChatVerticle: AbstractVerticle() {
    *        is done.
    */
   override fun start(startFuture: Future<Void>?) {
-    val dbConfig = json { obj(
+    val dbConfig = jsonObjectOf(
       "url" to "jdbc:hsqldb:mem:test?shutdown=true",
       "driver_class" to "org.hsqldb.jdbcDriver"
-    )}
+    )
     
     database = JDBCClient.createShared(vertx, dbConfig)
     httpServer = vertx.createHttpServer()
-    httpServer.requestHandler(RestController())
+    httpServer.requestHandler(RestController(this))
     httpServer.listen(HTTP_PORT)
     setupDatabase(startFuture)
   }
@@ -81,7 +81,7 @@ class ChatVerticle: AbstractVerticle() {
       |CREATE TABLE IF NOT EXISTS message (
       |id INT IDENTITY PRIMARY KEY,
       |content VARCHAR(255) NOT NULL,
-      |created_at TIMESTAMP NOT NULL
+      |received_at TIMESTAMP NOT NULL
       |)""".trimMargin()
     
     database.call(sqlQuery) { queryResult ->

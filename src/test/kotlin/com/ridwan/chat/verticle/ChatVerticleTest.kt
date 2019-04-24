@@ -10,6 +10,7 @@ import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import io.vertx.kotlin.core.json.json
+import io.vertx.kotlin.core.json.jsonObjectOf
 import io.vertx.kotlin.core.json.obj
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -65,27 +66,28 @@ internal class ChatVerticleTest {
   @Test
   fun testSendMessage(vertx: Vertx, test: VertxTestContext) {
     val client = vertx.createHttpClient()
-    val now = Timestamp.valueOf(LocalDateTime.now()).toString()
     val message = "test"
 
-    val requestBody = json { obj(
-      "message" to message,
-      "timestamp" to now
-    )}
+    val requestBody = jsonObjectOf(
+      "content" to message
+    )
   
     val path = "/send-message"
     val postRequest = client.post(HTTP_PORT, HTTP_DOMAIN, path) { response ->
       test.verify {
         assertEquals(200, response.statusCode())
         val database = verticle.database
-        val sqlQuery = "SELECT content, created_at FROM message LIMIT 1"
+        val sqlQuery = "SELECT content, received_at FROM message LIMIT 1"
     
         database.query(sqlQuery) { queryResult -> test.verify {
           assertNull(queryResult.cause())
           val data = queryResult.result().rows
           assertEquals(1, data.size)
-          assertEquals(message, data.first().getString("content"))
-          assertEquals(now, data.first().getString("timestamp"))
+          assertEquals(message, data.first().getString("CONTENT"))
+          assertDoesNotThrow {
+            data.first().getInstant("RECEIVED_AT") // check timestamp format
+          }
+          
           test.completeNow()
         } }
       }

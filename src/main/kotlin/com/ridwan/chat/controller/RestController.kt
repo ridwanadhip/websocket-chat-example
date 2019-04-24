@@ -4,11 +4,19 @@
 
 package com.ridwan.chat.controller
 
+import com.ridwan.chat.verticle.ChatVerticle
 import io.vertx.core.Handler
 import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServerRequest
+import io.vertx.core.json.Json
+import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.json.jsonArrayOf
+import io.vertx.kotlin.core.json.jsonObjectOf
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.LocalDateTime
 
-class RestController : Handler<HttpServerRequest> {
+class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
   override fun handle(request: HttpServerRequest) {
     when (request.path()) {
       "/" -> handleIndex(request)
@@ -36,8 +44,36 @@ class RestController : Handler<HttpServerRequest> {
       response.setStatusCode(400).end()
       return
     }
+    
+    request.bodyHandler { body ->
+      val jsonData = Json.decodeValue(body.toString()) as? JsonObject
+      val content = jsonData?.getString("content")
+      
+      if (jsonData == null || content.isNullOrBlank()) {
+        response.setStatusCode(400).end()
+        return@bodyHandler
+      }
+      
+      val sqlQuery = """
+        |INSERT INTO MESSAGE (content, received_at) values
+        |(?, ?)
+        |""".trimMargin()
   
-    response.setStatusCode(200).end()
+      val now = Instant.now().toString()
+      val params = jsonArrayOf(content, now)
+      val database = verticle.database
+      
+      database.updateWithParams(sqlQuery, params) { sqlResult ->
+        if (sqlResult.failed()) {
+          response.setStatusCode(500).end()
+          return@updateWithParams
+        }
+  
+        response
+          .putHeader("Content-Type", "application/json")
+          .end(jsonObjectOf().encode()) // return empty json object
+      }
+    }
   }
   
   private fun handleGetMessages(request: HttpServerRequest) {
@@ -50,7 +86,6 @@ class RestController : Handler<HttpServerRequest> {
   
     response
       .putHeader("Content-Type", "application/json")
-      .setStatusCode(200)
       .end()
   }
 }
