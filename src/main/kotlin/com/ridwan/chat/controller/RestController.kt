@@ -19,7 +19,17 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDateTime
 
+/**
+ * Controller class for processing HTTP request which passed by a chat verticle.
+ * @param verticle the verticle that passing incoming HTTP request.
+ */
 class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
+  
+  /**
+   * Redirect each request to it's handler method, so it can be processed
+   * furthermore.
+   * @param request the passed HTTP request.
+   */
   override fun handle(request: HttpServerRequest) {
     when (request.path()) {
       "/" -> handleIndex(request)
@@ -29,11 +39,21 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
     }
   }
   
+  /**
+   * Handle passed index request. Return 200 response if success.
+   * @param request the passed HTTP request.
+   */
   private fun handleIndex(request: HttpServerRequest) {
     val response = request.response()
     response.setStatusCode(200).end()
   }
   
+  /**
+   * Handle send message API. The request muse be POST, it's body must be JSON,
+   * and requester must include message content as "content" param within
+   * request body. If success, return 200 response with empty JSON body.
+   * @param request the passed HTTP request.
+   */
   private fun handleSendMessage(request: HttpServerRequest) {
     val response = request.response()
     
@@ -49,6 +69,7 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
     }
     
     request.bodyHandler { body ->
+      // check if message content is JSON
       val jsonData = try {
         Json.decodeValue(body.toString()) as JsonObject
       } catch (e: DecodeException) {
@@ -56,6 +77,7 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
         return@bodyHandler
       }
       
+      // check if message content is empty
       val content = jsonData.getString("content")
       if (content.isNullOrBlank()) {
         response.setStatusCode(400).end()
@@ -84,6 +106,11 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
     }
   }
   
+  /**
+   * Handle get messages API request. The HTTP request must be GET. If success,
+   * return 200 response with JSON body containing all previously sent messages.
+   * @param request the passed HTTP request.
+   */
   private fun handleGetMessages(request: HttpServerRequest) {
     val response = request.response()
     
