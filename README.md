@@ -30,11 +30,11 @@ $ java -jar bin/server.jar
 Either of those will deploy HTTP server to port 8080. If you want to change the the port then edit the configuration inside the `Constant.kt` file.
 
 Below are APIs that can be used:
-|url|verb|explanation|
-|---|---|---|
-|/|GET|index|
-|/send-message|POST|Send message and publish it to all users. The request's header must be `application/json` and it's content must following this format: `{"content": "the message content"}`|
-|/get-messages|GET|Get all published messages|
-|/display-messages|GET|Websocket connection API for retrieving newly published message in real time|
+| URL | HTTP Verb | Explanation |
+| --- | --- | --- |
+| / | GET | index |
+| /send-message | POST | Send message and publish it to all users. The request's header must be `application/json` and it's content must following this format: `{"content": "the message content"}` |
+| /get-messages | GET | Get all published messages |
+| /display-messages | GET | Websocket connection API for retrieving newly published message in real time |
 # Copyright
 2019 (c) by Ridwan Adhi Pratama
