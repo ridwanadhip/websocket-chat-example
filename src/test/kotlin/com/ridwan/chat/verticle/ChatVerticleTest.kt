@@ -277,7 +277,7 @@ internal class ChatVerticleTest {
   fun testDisplayMessageSuccess(vertx: Vertx, test: VertxTestContext) {
     val client = vertx.createHttpClient()
   
-    // collect all messages sent by websocket server into an array
+    // collect all messages sent by websocket server into an list
     val path = "/display-messages"
     val displayedMessages = mutableListOf<String>()
     client.websocket(HTTP_PORT, HTTP_DOMAIN, path) { connection ->
@@ -289,21 +289,24 @@ internal class ChatVerticleTest {
     // test above code by calling send message API multiple times
     val message1 = "testDisplayMessageSuccess1"
     val message2 = "testDisplayMessageSuccess2"
+    val message3 = "testDisplayMessageSuccess3"
+    val expectedResult = listOf(message1, message2, message3)
     val jsonBody1 = jsonObjectOf("content" to message1)
     val jsonBody2 = jsonObjectOf("content" to message2)
+    val jsonBody3 = jsonObjectOf("content" to message3)
     val sendMessagePath = "/send-message"
     
     client.jsonPost(sendMessagePath, jsonBody1) { test.verify {
       client.jsonPost(sendMessagePath, jsonBody2) { test.verify {
-        // wait for all
-        vertx.setTimer(1000) { test.verify {
-          assertEquals(2, displayedMessages.size)
-          val expectedMessages = listOf(message1, message2)
-          assertIterableEquals(expectedMessages, displayedMessages)
-          test.completeNow()
-        } }
-      } }
-    } }
+        client.jsonPost(sendMessagePath, jsonBody3) { test.verify {
+          // wait until user received all messages
+          vertx.setTimer(3000) {
+            assertIterableEquals(expectedResult, displayedMessages)
+            test.completeNow()
+          }
+        }}
+      }}
+    }}
   }
   
   /**

@@ -26,6 +26,9 @@ import io.vertx.kotlin.core.json.*
  * verticle is isolated to each other, so it will be safe if we want to deploy
  * multiple verticle with same or different class in one program.
  *
+ * Event Bus
+ * A publish+subscribe mechanism for communication.
+ *
  * In this example program, this verticle is responsible for:
  * 1. Handling request for "send message" and "get all messages" API.
  * 2. Act as websocket server for handling "display message" API.
