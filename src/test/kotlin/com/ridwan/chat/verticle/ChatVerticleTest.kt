@@ -8,6 +8,7 @@ import com.ridwan.chat.HTTP_PORT
 import com.ridwan.chat.HTTP_DOMAIN
 import com.ridwan.chat.controller.BusCommand
 import io.vertx.core.Vertx
+import io.vertx.core.http.HttpClient
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
@@ -84,11 +85,13 @@ internal class ChatVerticleTest {
       "content" to content
     )
   
-    // verify that sent message is published
+    // verify that sent message is published. If true, then finish this test.
     val eventBus = vertx.eventBus()
     val command = BusCommand.SEND_MESSAGE.address
-    eventBus.consumer<String>(command) { message -> test.verify {
+    val busConsumer = eventBus.consumer<String>(command)
+    busConsumer.handler { message -> test.verify {
       assertEquals(content, message.body())
+      busConsumer.unregister()
       test.completeNow()
     } }
   
@@ -265,5 +268,55 @@ internal class ChatVerticleTest {
         test.completeNow()
       } }
     } }.end()
+  }
+  
+  /**
+   * Check if display messages api handled properly.
+   */
+  @Test
+  fun testDisplayMessageSuccess(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+  
+    // collect all messages sent by websocket server into an array
+    val path = "/display-messages"
+    val displayedMessages = mutableListOf<String>()
+    client.websocket(HTTP_PORT, HTTP_DOMAIN, path) { connection ->
+      connection.textMessageHandler { message ->
+        displayedMessages.add(message)
+      }
+    }
+
+    // test above code by calling send message API multiple times
+    val message1 = "testDisplayMessageSuccess1"
+    val message2 = "testDisplayMessageSuccess2"
+    val jsonBody1 = jsonObjectOf("content" to message1)
+    val jsonBody2 = jsonObjectOf("content" to message2)
+    val sendMessagePath = "/send-message"
+    
+    client.jsonPost(sendMessagePath, jsonBody1) { test.verify {
+      client.jsonPost(sendMessagePath, jsonBody2) { test.verify {
+        // wait for all
+        vertx.setTimer(1000) { test.verify {
+          assertEquals(2, displayedMessages.size)
+          val expectedMessages = listOf(message1, message2)
+          assertIterableEquals(expectedMessages, displayedMessages)
+          test.completeNow()
+        } }
+      } }
+    } }
+  }
+  
+  /**
+   * Helper method for calling post request with JSON body.
+   * @param path the url path
+   * @param body the JSON body
+   * @param action code that needs to be executed after request had been
+   *        completed
+   */
+  private fun HttpClient.jsonPost(path: String, body: JsonObject, action: () -> Unit) {
+    this.post(HTTP_PORT, HTTP_DOMAIN, path) {
+      action()
+    }.putHeader("Content-Type", "application/json")
+      .end(body.encode())
   }
 }
