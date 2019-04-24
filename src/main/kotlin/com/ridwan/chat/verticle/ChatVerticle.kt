@@ -79,9 +79,9 @@ class ChatVerticle: AbstractVerticle() {
   private fun setupDatabase(future: Future<Void>?) {
     val sqlQuery = """
       |CREATE TABLE IF NOT EXISTS message (
-      |id INT IDENTITY PRIMARY KEY,
-      |content VARCHAR(255) NOT NULL,
-      |received_at TIMESTAMP NOT NULL
+      |"id" INT IDENTITY PRIMARY KEY,
+      |"content" VARCHAR(255) NOT NULL,
+      |"received_at" TIMESTAMP NOT NULL
       |)""".trimMargin()
     
     database.call(sqlQuery) { queryResult ->

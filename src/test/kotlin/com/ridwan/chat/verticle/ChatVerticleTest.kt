@@ -77,15 +77,15 @@ internal class ChatVerticleTest {
       test.verify {
         assertEquals(200, response.statusCode())
         val database = verticle.database
-        val sqlQuery = "SELECT content, received_at FROM message LIMIT 1"
+        val sqlQuery = """SELECT "content", "received_at" FROM message LIMIT 1"""
     
         database.query(sqlQuery) { queryResult -> test.verify {
           assertNull(queryResult.cause())
           val data = queryResult.result().rows
           assertEquals(1, data.size)
-          assertEquals(message, data.first().getString("CONTENT"))
+          assertEquals(message, data.first().getString("content"))
           assertDoesNotThrow {
-            data.first().getInstant("RECEIVED_AT") // check timestamp format
+            data.first().getInstant("received_at") // check timestamp format
           }
           
           test.completeNow()

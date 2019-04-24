@@ -55,7 +55,7 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
       }
       
       val sqlQuery = """
-        |INSERT INTO MESSAGE (content, received_at) values
+        |INSERT INTO MESSAGE ("content", "received_at") values
         |(?, ?)
         |""".trimMargin()
   
