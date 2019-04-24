@@ -8,6 +8,9 @@ import com.ridwan.chat.HTTP_PORT
 import com.ridwan.chat.HTTP_DOMAIN
 import io.vertx.core.Future
 import io.vertx.core.Vertx
+import io.vertx.core.json.Json
+import io.vertx.core.json.JsonArray
+import io.vertx.core.json.JsonObject
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import io.vertx.kotlin.core.json.json
@@ -86,10 +89,7 @@ internal class ChatVerticleTest {
           val data = queryResult.result().rows
           assertEquals(1, data.size)
           assertEquals(message, data.first().getString("content"))
-          assertDoesNotThrow {
-            data.first().getInstant("received_at") // check timestamp format
-          }
-          
+          assertNotNull(data.first().getInstant("received_at"))
           test.completeNow()
         } }
       }
@@ -170,5 +170,30 @@ internal class ChatVerticleTest {
     } }
       .putHeader("Content-Type", "application/json")
       .end()
+  }
+  
+  /**
+   * Check if get messages API perform correctly
+   */
+  @Test
+  fun testGetMessagesSuccess(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val path = "/get-messages"
+    
+    client.get(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+      assertEquals(200, response.statusCode())
+      assertEquals("application/json", response.getHeader("Content-Type"))
+      
+      response.bodyHandler { body -> test.verify {
+        val messages = Json.decodeValue(body.toString()) as JsonArray
+        val first = messages.first() as JsonObject
+        
+        assertNotNull(first.getInteger("id"))
+        assertNotNull(first.getString("content"))
+        assertNotEquals("", first.getString("content"))
+        assertNotNull(first.getInstant("received_at"))
+        test.completeNow()
+      } }
+    } }.end()
   }
 }
