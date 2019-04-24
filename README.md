@@ -30,6 +30,7 @@ $ java -jar bin/server.jar
 Either of those will deploy HTTP server to port 8080. If you want to change the the port then edit the configuration inside the `Constant.kt` file.
 
 Below are APIs that can be used:
+
 | URL | HTTP Verb | Explanation |
 | --- | --- | --- |
 | / | GET | index |
