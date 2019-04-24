@@ -98,6 +98,10 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
           response.setStatusCode(500).end()
           return@updateWithParams
         }
+        
+        val eventBus = verticle.vertx.eventBus()
+        val command = BusCommand.SEND_MESSAGE.address
+        eventBus.publish(command, content)
   
         response
           .putHeader("Content-Type", "application/json")

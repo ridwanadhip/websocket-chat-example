@@ -6,6 +6,7 @@ package com.ridwan.chat.verticle
 
 import com.ridwan.chat.HTTP_PORT
 import com.ridwan.chat.HTTP_DOMAIN
+import com.ridwan.chat.controller.BusCommand
 import io.vertx.core.Vertx
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonArray
@@ -77,11 +78,19 @@ internal class ChatVerticleTest {
   @Test
   fun testSendMessageSuccess(vertx: Vertx, test: VertxTestContext) {
     val client = vertx.createHttpClient()
-    val message = "testSendMessageSuccess"
+    val content = "testSendMessageSuccess"
 
     val requestBody = jsonObjectOf(
-      "content" to message
+      "content" to content
     )
+  
+    // verify that sent message is published
+    val eventBus = vertx.eventBus()
+    val command = BusCommand.SEND_MESSAGE.address
+    eventBus.consumer<String>(command) { message -> test.verify {
+      assertEquals(content, message.body())
+      test.completeNow()
+    } }
   
     val path = "/send-message"
     val postRequest = client.post(HTTP_PORT, HTTP_DOMAIN, path) { response ->
@@ -95,9 +104,8 @@ internal class ChatVerticleTest {
           assertNull(queryResult.cause())
           val data = queryResult.result().rows
           assertEquals(1, data.size)
-          assertEquals(message, data.first().getString("content"))
+          assertEquals(content, data.first().getString("content"))
           assertNotNull(data.first().getInstant("received_at"))
-          test.completeNow()
         } }
       }
     }
