@@ -8,10 +8,12 @@ import com.ridwan.chat.verticle.ChatVerticle
 import io.vertx.core.Handler
 import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServerRequest
+import io.vertx.core.json.DecodeException
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
+import java.lang.Exception
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDateTime
@@ -46,18 +48,23 @@ class RestController(val verticle: ChatVerticle) : Handler<HttpServerRequest> {
     }
     
     request.bodyHandler { body ->
-      val jsonData = Json.decodeValue(body.toString()) as? JsonObject
-      val content = jsonData?.getString("content")
+      val jsonData = try {
+        Json.decodeValue(body.toString()) as JsonObject
+      } catch (e: DecodeException) {
+        response.setStatusCode(400).end()
+        return@bodyHandler
+      }
       
-      if (jsonData == null || content.isNullOrBlank()) {
+      val content = jsonData.getString("content")
+      if (content.isNullOrBlank()) {
         response.setStatusCode(400).end()
         return@bodyHandler
       }
       
       val sqlQuery = """
-        |INSERT INTO MESSAGE ("content", "received_at") values
-        |(?, ?)
-        |""".trimMargin()
+        INSERT INTO message ("content", "received_at")
+        VALUES (?, ?)
+        """.trimMargin()
   
       val now = Instant.now().toString()
       val params = jsonArrayOf(content, now)

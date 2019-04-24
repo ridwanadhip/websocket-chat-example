@@ -76,13 +76,18 @@ class ChatVerticle: AbstractVerticle() {
     stopFuture?.complete()
   }
   
+  /**
+   * Initialize database and it's table.
+   * @param future a future object that should to be called when everything
+   *        is done.
+   */
   private fun setupDatabase(future: Future<Void>?) {
     val sqlQuery = """
-      |CREATE TABLE IF NOT EXISTS message (
-      |"id" INT IDENTITY PRIMARY KEY,
-      |"content" VARCHAR(255) NOT NULL,
-      |"received_at" TIMESTAMP NOT NULL
-      |)""".trimMargin()
+      CREATE TABLE IF NOT EXISTS message (
+      "id" INT IDENTITY PRIMARY KEY,
+      "content" VARCHAR(255) NOT NULL,
+      "received_at" TIMESTAMP NOT NULL
+      )""".trimMargin()
     
     database.call(sqlQuery) { queryResult ->
       if (queryResult.failed()) {

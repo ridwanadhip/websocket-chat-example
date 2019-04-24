@@ -6,6 +6,7 @@ package com.ridwan.chat.verticle
 
 import com.ridwan.chat.HTTP_PORT
 import com.ridwan.chat.HTTP_DOMAIN
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
@@ -64,7 +65,7 @@ internal class ChatVerticleTest {
    * Check if send message API is working or not.
    */
   @Test
-  fun testSendMessage(vertx: Vertx, test: VertxTestContext) {
+  fun testSendMessageSuccess(vertx: Vertx, test: VertxTestContext) {
     val client = vertx.createHttpClient()
     val message = "test"
 
@@ -79,6 +80,7 @@ internal class ChatVerticleTest {
         val database = verticle.database
         val sqlQuery = """SELECT "content", "received_at" FROM message LIMIT 1"""
     
+        // verify that sent message is saved in database
         database.query(sqlQuery) { queryResult -> test.verify {
           assertNull(queryResult.cause())
           val data = queryResult.result().rows
@@ -96,5 +98,77 @@ internal class ChatVerticleTest {
     postRequest
       .putHeader("Content-Type", "application/json")
       .end(requestBody.encode())
+  }
+  
+  /**
+   * Check if API will fail gracefully after receiving request with wrong HTTP
+   * verb.
+   */
+  @Test
+  fun testSendMessageNotPost(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val requestBody = jsonObjectOf(
+      "content" to "test"
+    )
+  
+    val path = "/send-message"
+    client.get(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+      assertEquals(404, response.statusCode())
+      test.completeNow()
+    } }
+    .putHeader("Content-Type", "application/json")
+    .end(requestBody.encode())
+  }
+  
+  /**
+   * Check if API will fail gracefully after receiving request with wrong
+   * content type header.
+   */
+  @Test
+  fun testSendMessageWrongContentType(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val path = "/send-message"
+    val requestBody = jsonObjectOf(
+      "content" to "test"
+    )
+    
+    // send request without content type header
+    client.post(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+      assertEquals(400, response.statusCode())
+  
+      // send request with wrong content type header
+      client.post(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+        assertEquals(400, response.statusCode())
+        test.completeNow()
+      } }
+        .putHeader("Content-Type", "application/xml")
+        .end(requestBody.encode())
+    } }
+      .end(requestBody.encode())
+  }
+  
+  /**
+   * Check if API will fail gracefully after receiving request with bad data.
+   */
+  @Test
+  fun testSendMessageWrongBody(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val path = "/send-message"
+    val requestBody = jsonObjectOf()
+
+    // send empty body
+    client.post(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+      assertEquals(400, response.statusCode())
+  
+      // send empty json
+      client.post(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+        assertEquals(400, response.statusCode())
+        test.completeNow()
+      } }
+        .putHeader("Content-Type", "application/json")
+        .end(requestBody.encode())
+    } }
+      .putHeader("Content-Type", "application/json")
+      .end()
   }
 }
