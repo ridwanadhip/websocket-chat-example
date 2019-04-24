@@ -14,12 +14,14 @@ import io.vertx.core.json.JsonObject
 import io.vertx.junit5.VertxExtension
 import io.vertx.junit5.VertxTestContext
 import io.vertx.kotlin.core.json.json
+import io.vertx.kotlin.core.json.jsonArrayOf
 import io.vertx.kotlin.core.json.jsonObjectOf
 import io.vertx.kotlin.core.json.obj
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
+import java.time.Instant
 import java.time.LocalDateTime
 
 /**
@@ -101,8 +103,8 @@ internal class ChatVerticleTest {
   }
   
   /**
-   * Check if API will fail gracefully after receiving request with wrong HTTP
-   * verb.
+   * Check if send message API will fail gracefully after receiving request with
+   * wrong HTTP verb.
    */
   @Test
   fun testSendMessageNotPost(vertx: Vertx, test: VertxTestContext) {
@@ -121,8 +123,8 @@ internal class ChatVerticleTest {
   }
   
   /**
-   * Check if API will fail gracefully after receiving request with wrong
-   * content type header.
+   * Check if send message API will fail gracefully after receiving request with
+   * wrong content type header.
    */
   @Test
   fun testSendMessageWrongContentType(vertx: Vertx, test: VertxTestContext) {
@@ -148,7 +150,8 @@ internal class ChatVerticleTest {
   }
   
   /**
-   * Check if API will fail gracefully after receiving request with bad data.
+   * Check if send message API will fail gracefully after receiving request with
+   * bad data.
    */
   @Test
   fun testSendMessageWrongBody(vertx: Vertx, test: VertxTestContext) {
@@ -173,27 +176,82 @@ internal class ChatVerticleTest {
   }
   
   /**
-   * Check if get messages API perform correctly
+   * Check if get messages API perform correctly.
    */
   @Test
   fun testGetMessagesSuccess(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val path = "/get-messages"
+  
+    val sqlQuery = """
+      INSERT INTO message ("content", "received_at")
+      VALUES (?, ?)
+      """.trimMargin()
+    
+    val content = "test"
+    val now = Instant.now()
+    val params = jsonArrayOf(content, now.toString())
+    val database = verticle.database
+    
+    database.updateWithParams(sqlQuery, params) { sqlResult ->
+      assertNull(sqlResult.cause())
+      
+      client.get(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+        assertEquals(200, response.statusCode())
+        assertEquals("application/json", response.getHeader("Content-Type"))
+    
+        response.bodyHandler { body -> test.verify {
+          val messages = Json.decodeValue(body.toString()) as JsonArray
+          assertEquals(1, messages.size())
+          val first = messages.first() as JsonObject
+      
+          assertNotNull(first.getInteger("id"))
+          assertEquals(content, first.getString("content"))
+          assertEquals(now, first.getInstant("received_at"))
+          test.completeNow()
+        } }
+      } }.end()
+    }
+  }
+  
+  /**
+   * Check if get messages API will fail gracefully after receiving request with
+   * wrong HTTP verb.
+   */
+  @Test
+  fun testGetMessagesNotGet(vertx: Vertx, test: VertxTestContext) {
+    val client = vertx.createHttpClient()
+    val requestBody = jsonObjectOf(
+      "content" to "test"
+    )
+    
+    val path = "/get-messages"
+    client.post(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
+      assertEquals(404, response.statusCode())
+      test.completeNow()
+    } }
+      .putHeader("Content-Type", "application/json")
+      .end(requestBody.encode())
+  }
+  
+  /**
+   * Check if get messages api will return proper result when database empty.
+   */
+  @Test
+  fun testGetMessagesEmpty(vertx: Vertx, test: VertxTestContext) {
     val client = vertx.createHttpClient()
     val path = "/get-messages"
     
     client.get(HTTP_PORT, HTTP_DOMAIN, path) { response -> test.verify {
       assertEquals(200, response.statusCode())
       assertEquals("application/json", response.getHeader("Content-Type"))
-      
+  
       response.bodyHandler { body -> test.verify {
         val messages = Json.decodeValue(body.toString()) as JsonArray
-        val first = messages.first() as JsonObject
-        
-        assertNotNull(first.getInteger("id"))
-        assertNotNull(first.getString("content"))
-        assertNotEquals("", first.getString("content"))
-        assertNotNull(first.getInstant("received_at"))
+        assertEquals(0, messages.size())
         test.completeNow()
       } }
-    } }.end()
+    } }
+      .end()
   }
 }
